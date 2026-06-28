@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
+venv/
+
+# Build / dist
+build/build/
+dist/
+*.spec.bak
+
+# IDE
+.vscode/
+.idea/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Sensitive data
+shop/sales.json
+*.license
+license.json
+
+# ffmpeg binaries (too large, users install separately)
+app/assets/ffmpeg/
+
+# PyInstaller
+*.manifest
