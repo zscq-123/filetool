@@ -2,6 +2,9 @@
 """
 激活码生成工具（卖家用）
 根据买家提供的机器码生成激活码
+
+启动前需设置环境变量：
+    set FILETOOL_SECRET=你的密钥
 """
 import sys
 import os
@@ -156,6 +159,13 @@ class KeygenWindow(QWidget):
         self.setLayout(layout)
 
     def _generate_key(self):
+        # 检查密钥
+        if not os.environ.get('FILETOOL_SECRET'):
+            QMessageBox.critical(self, "错误",
+                "未设置 FILETOOL_SECRET 环境变量\n\n"
+                "请先执行: set FILETOOL_SECRET=你的密钥")
+            return
+
         raw_code = self.machine_code_input.text().strip()
         if not raw_code:
             QMessageBox.warning(self, "提示", "请输入买家机器码")
@@ -167,7 +177,11 @@ class KeygenWindow(QWidget):
             QMessageBox.warning(self, "提示", "机器码长度不正确（应为16位）")
             return
 
-        key = generate_license_key(clean_code)
+        try:
+            key = generate_license_key(clean_code)
+        except RuntimeError as e:
+            QMessageBox.critical(self, "错误", str(e))
+            return
         self.result_display.setText(key)
         self.btn_copy.setEnabled(True)
 
