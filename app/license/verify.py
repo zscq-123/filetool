@@ -12,8 +12,10 @@ import hashlib
 import platform
 from pathlib import Path
 
-# 密钥从环境变量读取，不硬编码在代码中
-_DEFAULT_SECRET = os.environ.get('FILETOOL_SECRET', '')
+# 密钥优先级：环境变量 > 内置默认值
+# 服务端生成激活码必须设置环境变量；客户端验证可使用内置默认值
+_BUILTIN_SECRET = 'FileTool@2025'
+_DEFAULT_SECRET = os.environ.get('FILETOOL_SECRET', _BUILTIN_SECRET)
 
 
 # 激活文件路径
@@ -93,28 +95,32 @@ def get_machine_code() -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
 
 
-def generate_license_key(machine_code: str, secret: str = '') -> str:
-    """生成 License Key (服务端用)
-    secret 参数优先使用传入值，否则从环境变量 FILETOOL_SECRET 读取
-    """
-    if not secret:
-        secret = _DEFAULT_SECRET
-    if not secret:
-        raise RuntimeError("未设置 FILETOOL_SECRET 环境变量，无法生成激活码")
-    """生成 License Key (服务端用)"""
+def _compute_key(machine_code: str, secret: str) -> str:
+    """核心计算：生成格式化激活码"""
     raw = f"{machine_code}:{secret}"
     key = hashlib.sha256(raw.encode()).hexdigest()[:24].upper()
-    # 格式化: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
     return '-'.join(key[i:i+4] for i in range(0, 24, 4))
 
 
-def verify_license_key(machine_code: str, license_key: str, secret: str = '') -> bool:
-    """验证 License Key（本地验证）"""
+def generate_license_key(machine_code: str, secret: str = '') -> str:
+    """生成 License Key（服务端用）
+    必须设置 FILETOOL_SECRET 环境变量或传入 secret 参数
+    """
     if not secret:
         secret = _DEFAULT_SECRET
+    # 服务端生成：如果用内置默认值且未设环境变量，拒绝生成
+    if not os.environ.get('FILETOOL_SECRET') and secret == _BUILTIN_SECRET:
+        raise RuntimeError("未设置 FILETOOL_SECRET 环境变量，无法生成激活码")
+    return _compute_key(machine_code, secret)
+
+
+def verify_license_key(machine_code: str, license_key: str, secret: str = '') -> bool:
+    """验证 License Key（客户端本地验证）
+    自动使用环境变量或内置默认密钥
+    """
     if not secret:
-        raise RuntimeError("未设置 FILETOOL_SECRET 环境变量，无法验证激活码")
-    expected = generate_license_key(machine_code, secret)
+        secret = _DEFAULT_SECRET
+    expected = _compute_key(machine_code, secret)
     # 去除分隔符再比较
     clean_input = license_key.replace('-', '').upper()
     clean_expected = expected.replace('-', '').upper()
